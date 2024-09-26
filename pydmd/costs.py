@@ -963,7 +963,7 @@ class COSTS:
         self,
         include_means=True,
     ):
-        """Reconstruct the spatiotemporal features for each frequency band.
+        """Reconstruct the spatiotemporal features for ea`ch` frequency band.
 
         The reconstructed data are convolved with a guassian filter since
         points near the middle of the window are more reliable than points
@@ -1520,6 +1520,9 @@ class COSTS:
                 "step_size": self._step_size,
                 "non_integer_n_slide": self._non_integer_n_slide,
                 "global_svd": self._global_svd,
+                "relative_filter_length": self._relative_filter_length,
+                "kern_method": self._kern_method,
+                "svd_rank_pre_allocate": self._svd_rank_pre_allocate,
             },
         )
 
@@ -1553,6 +1556,12 @@ class COSTS:
         self._step_size = ds.attrs["step_size"]
         self._window_length = ds.attrs["window_length"]
         self._global_svd = ds.attrs["global_svd"]
+        self._relative_filter_length = ds.attrs["relative_filter_length"]
+        self._kern_method = ds.attrs["kern_method"]
+        if "svd_rank_pre_allocate" not in ds.attrs:
+            self._svd_rank_pre_allocate = self._svd_rank
+        else:
+            self._svd_rank_pre_allocate = ds.attrs["svd_rank_pre_allocate"]
 
         self._pydmd_kwargs = {}
         for attr in ds.attrs:

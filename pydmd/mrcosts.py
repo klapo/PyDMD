@@ -549,6 +549,8 @@ class mrCOSTS:
         # mrCOSTS currently does not support variable pydmd_kwargs
         # for each level.
         pydmd_kwargs = mrd_list[0]._pydmd_kwargs
+        relative_filter_length = mrd_list[0]._relative_filter_length
+        kern_method = mrd_list[0]._kern_method
 
         # Initialize the mrcosts object.
         self.__init__(
@@ -558,6 +560,8 @@ class mrCOSTS:
             global_svd_array=global_svd_array,
             pydmd_kwargs=pydmd_kwargs,
             n_components_array=n_components_array,
+            relative_filter_length=relative_filter_length,
+            kern_method=kern_method,
         )
 
         # Initialize variables that are defined in fitting.
@@ -1069,13 +1073,6 @@ class mrCOSTS:
                 b = mrd.amplitudes_array[k]
                 omega = np.atleast_2d(mrd.omega_array[k]).T
                 classification = omega_classes[k]
-
-                if not w.shape[1] == omega_classes.shape[1]:
-                    print(w.shape)
-                    print(omega_classes.shape)
-                    print(n_mrd)
-                    print(mrd.svd_rank)
-                    print(truncate_slice)
 
                 # Compute each segment of xr starting at "t = 0"
                 t = mrd.time_array[k]
