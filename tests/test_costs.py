@@ -204,6 +204,18 @@ def test_scale_separation():
     np.testing.assert_allclose(re_hf, expected_hf_error, atol=0.02)
 
 
+def test_low_frequency_reconstruction():
+    """
+    Tests that reconstructing only the low frequency band gives the same
+    result as the low frequency band of the full scale reconstruction.
+    """
+    for include_means in [True, False]:
+        xr_sep = mrd.scale_reconstruction(include_means=include_means)
+        xr_lf = mrd.low_frequency_reconstruction(include_means=include_means)
+        assert xr_lf.shape == xr_sep.shape[1:]
+        np.testing.assert_allclose(xr_lf, xr_sep[0], rtol=1e-12, atol=1e-12)
+
+
 def test_omega_transforms():
     """
     Tests that the COSTS module correctly transforms the eigenvalues yielding...

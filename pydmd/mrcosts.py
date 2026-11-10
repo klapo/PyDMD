@@ -3,6 +3,10 @@ Module for the multi-resolution Coherent Spatio-Temporal Scale Separation with
 DMD.
 
 References:
+- Lapo, K., Ichinaga, S., & Kutz, J. N. (2025). A method for unsupervised
+learning of coherent spatiotemporal patterns in multiscale data. Proceedings
+of the National Academy of Sciences, 122(7), 10.1073/pnas.2415786122.
+https://doi.org/10.1073/pnas.2415786122
 - Dylewsky, D., Tao, M., & Kutz, J. N. (2019). Dynamic mode decomposition for
 multiscale nonlinear physics. Physics Review E, 99(6),
 10.1103/PhysRevE.99.063311. https://doi.org/10.1103/PhysRevE.99.063311
@@ -361,11 +365,11 @@ class mrCOSTS:
             # Pass the low frequency component to the next level of
             # decomposition.
             if n_decomp < n_decompositions - 1:
-                # Scale separation
-                xr_low_frequency, _ = mrd.scale_separation(
-                    scale_reconstruction_kwargs=self._costs_recon_kwargs
+                # Only the low frequency band is needed, so avoid
+                # reconstructing the high frequency bands.
+                x_iter = mrd.low_frequency_reconstruction(
+                    **self._costs_recon_kwargs
                 )
-                x_iter = xr_low_frequency
 
             # Save the fitted costs object.
             self._costs_array.append(copy.copy(mrd))
@@ -1154,7 +1158,7 @@ class mrCOSTS:
         :rtype: numpy.ndarray
         """
 
-        background = self.costs_array[-1].scale_reconstruction()[0, :, :]
+        background = self.costs_array[-1].low_frequency_reconstruction()
         return background
 
     def global_reconstruction(self):

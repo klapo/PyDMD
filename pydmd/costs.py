@@ -2,6 +2,10 @@
 Module for the Coherent Spatio-Temporal Scale Separation with DMD.
 
 References:
+- Lapo, K., Ichinaga, S., & Kutz, J. N. (2025). A method for unsupervised
+learning of coherent spatiotemporal patterns in multiscale data. Proceedings
+of the National Academy of Sciences, 122(7), 10.1073/pnas.2415786122.
+https://doi.org/10.1073/pnas.2415786122
 - Dylewsky, D., Tao, M., & Kutz, J. N. (2019). Dynamic mode decomposition for
 multiscale nonlinear physics. Physics Review E, 99(6),
 10.1103/PhysRevE.99.063311. https://doi.org/10.1103/PhysRevE.99.063311
@@ -1047,14 +1051,60 @@ class COSTS:
             n_components x n_data_vars x n_time_steps
         :rtype: numpy.ndarray
         """
+        return self._reconstruct_components(
+            np.arange(self._n_components), include_means=include_means
+        )
+
+    def low_frequency_reconstruction(
+        self,
+        include_means=True,
+    ):
+        """Reconstruct only the lowest frequency band.
+
+        Equivalent to `scale_reconstruction()[0]`, but only the modes of the
+        lowest frequency band are reconstructed. This avoids building the
+        reconstruction of every frequency band when only the low frequency
+        component is needed, e.g., when passing it to the next decomposition
+        level in mrCOSTS.
+
+        :param include_means: Not API stable
+        :return: Reconstruction of the lowest frequency band with dimensions
+            of n_data_vars x n_time_steps.
+        :rtype: numpy.ndarray
+        """
+        # The clusters are sorted by centroid, so the lowest frequency band is
+        # always component 0.
+        xr_sep = self._reconstruct_components([0], include_means=include_means)
+        return xr_sep[0]
+
+    def _reconstruct_components(
+        self,
+        components,
+        include_means=True,
+    ):
+        """Reconstruct the spatiotemporal features of selected frequency bands.
+
+        See `scale_reconstruction` for details on the window weighting.
+
+        :param components: Indices of the frequency bands to reconstruct.
+        :type components: array_like of int
+        :param include_means: Not API stable
+        :return: Reconstruction for each requested frequency band with
+            dimensions of: len(components) x n_data_vars x n_time_steps
+        :rtype: numpy.ndarray
+        """
+        components = np.atleast_1d(components)
 
         # Each individual reconstructed window
         xr_sep = np.zeros(
-            (self._n_components, self._n_data_vars, self._n_time_steps)
+            (len(components), self._n_data_vars, self._n_time_steps)
         )
 
         # Track the total contribution from all windows to each time step
         xn = np.zeros(self._n_time_steps)
+
+        # Clusters present across all windows.
+        present_classes = np.unique(self._omega_classes)
 
         for k in range(self._n_slides):
 
@@ -1089,11 +1139,14 @@ class COSTS:
             t = t - t_start
 
             xr_sep_window = np.zeros(
-                (self._n_components, self._n_data_vars, self._window_length)
+                (len(components), self._n_data_vars, self._window_length)
             )
-            for j in np.unique(self._omega_classes):
+            for i, j in enumerate(components):
+                # Skip clusters without any members.
+                if j not in present_classes:
+                    continue
                 class_index = classification == j
-                xr_sep_window[j] = np.linalg.multi_dot(
+                xr_sep_window[i] = np.linalg.multi_dot(
                     [
                         w[:, class_index],
                         np.diag(b[class_index]),
@@ -1101,13 +1154,15 @@ class COSTS:
                     ]
                 ).real
 
-                # Add the constant offset to the lowest frequency cluster.
-                if include_means and j == np.argmin(self._cluster_centroids):
-                    xr_sep_window[j] += c
-                xr_sep_window[j] = xr_sep_window[j] * recon_filter
+                # Add the window means only to the low frequency band (class
+                # 0). All other classes are high frequency bands resolved at
+                # this decomposition level and must not carry the means.
+                if include_means and j == 0:
+                    xr_sep_window[i] += c
+                xr_sep_window[i] = xr_sep_window[i] * recon_filter
 
-                xr_sep[j, :, window_indices] = (
-                    xr_sep[j, :, window_indices] + xr_sep_window[j]
+                xr_sep[i, :, window_indices] = (
+                    xr_sep[i, :, window_indices] + xr_sep_window[i]
                 )
 
             xn[window_indices] += recon_filter
